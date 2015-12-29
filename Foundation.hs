@@ -138,22 +138,35 @@ instance YesodAuth App where
     -- Override the above two destinations when a Referer: header is present
     redirectToReferer _ = True
 
+    -- authenticate creds = runDB $ do
+    --     x <- getBy $ UniqueUser $ credsIdent creds
+    --     return $ case x of
+    --         Just (Entity uid _) -> Authenticated uid
+    --         Nothing -> UserError InvalidLogin
+
     authenticate creds = runDB $ do
-        x <- getBy $ UniqueUser $ credsIdent creds
-        return $ case x of
-            Just (Entity uid _) -> Authenticated uid
-            Nothing -> UserError InvalidLogin
+      x <- getBy $ UniqueUser $ credsIdent creds
+      case x of
+        -- TODO figure out why this works 
+        Just (Entity uid _) -> fmap Authenticated (return uid)
+        -- why not:
+        -- Just (Entity uid _) -> Authenticated uid
+        -- probably because of the Monad instance return puts uid in, then the functor instance used as a result when fmapping Authenticated
+
+        Nothing -> do
+          fmap Authenticated $ insert User {userIdent = credsIdent creds , userPassword  = Nothing}
+
 
     -- You can add other plugins like BrowserID, email or OAuth here
-    authPlugins _ = [authGoogleEmail clientId clientSecret]
+    authPlugins _ = [authGoogleEmailSaveToken clientId clientSecret]
 
     authHttpManager = getHttpManager
 
 clientId :: Text
-clientId = "my client id"
+clientId = "857907033446-hdpt0hkg8rg232alaotd5s2trk3p9dct.apps.googleusercontent.com"
 
 clientSecret :: Text
-clientSecret = "my client secret"
+clientSecret = "YJbyXaKirZBshIX-IhQGbw7i"
 
 
 instance YesodAuthPersist App
